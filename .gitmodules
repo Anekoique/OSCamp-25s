@@ -1,3 +1,6 @@
-[submodule "2025s-rustling-Anekoique"]
-	path = 2025s-rustling-Anekoique
+[submodule "2025s-rcore"]
+	path = 2025s-rcore
+	url = https://github.com/LearningOS/2025s-rcore-Anekoique
+[submodule "2025s-rustling"]
+	path = 2025s-rustling
 	url = https://github.com/LearningOS/2025s-rustling-Anekoique.git
