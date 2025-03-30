@@ -4,3 +4,6 @@
 [submodule "2025s-rustling"]
 	path = 2025s-rustling
 	url = https://github.com/LearningOS/2025s-rustling-Anekoique.git
+[submodule "ArceOS"]
+	path = ArceOS
+	url = https://github.com/Anekoique/ArceOS.git
