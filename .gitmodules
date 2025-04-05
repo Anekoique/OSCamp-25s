@@ -7,3 +7,6 @@
 [submodule "ArceOS"]
 	path = ArceOS
 	url = https://github.com/Anekoique/ArceOS.git
+[submodule "2025s-arceos"]
+	path = 2025s-arceos
+	url = https://github.com/Anekoique/2025s-arceos.git
