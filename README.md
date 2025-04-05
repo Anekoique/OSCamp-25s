@@ -2,7 +2,7 @@
 
 前置基础 
 
-Rust：已经学习了一周多的基础语法，完成官方版本的rustling
+Rust：学习了一周多的基础语法，完成官方版本的rustling
 
 OS：OSTEP 和 MIT xv6的lab
 
@@ -20,12 +20,14 @@ OS：OSTEP 和 MIT xv6的lab
 * [Day   5   (2025-03-26)](#4)
 * [Day   6   (2025-03-27)](#5)
 * [Day   7   (2025-03-28)](#6)
-* [rCore Lab Record](#9)
 
 **Part3 ArceOS**
 
 - [Day   8   (2025-03-30)](#7)
 - [Day   9   (2025-03-31)](#8)
+- [Day   10   (2025-04-01)](#9)
+- [Day   11   (2025-04-02)](#10)
+- [Day   12   (2025-04-04)](#11)
 
 **Part4 Starry**
 
@@ -59,7 +61,7 @@ OS：OSTEP 和 MIT xv6的lab
 
 ## Part 2 rCore
 
-没有阅读过太多rust代码，上手框架代码有一定难度，但是通过lab是不难的，相对与xv6的lab没有那么tricky，测例也比较少。tutorial book内容较多，可以粗略阅读后直接阅读框架代码然后不懂的再找book和ai
+没有阅读过太多rust代码，上手框架代码有一定难度，但是通过lab是不难的，相对与xv6的lab没有那么tricky。tutorial book内容较多，可以粗略阅读后直接阅读框架代码然后不懂的再找book和ai
 
 <span id="2"></span>
 
@@ -119,20 +121,34 @@ ch8：引入锁、信号量、条件变量，实现并发
 
 整理前两阶段完成过程，补充过程记录
 
-记录ArceOS ch0 ch1学习过程，撰写文档
-
-## Part 4 Starry
+记录ArceOS tutorial ch0 ch1学习过程，撰写文档
 
 <span id="9"></span>
 
-## rCore Lab Record
+### Day 10
 
-### Lab 1
+记录ArceOS tutorial ch2 ch3学习过程，撰写文档
 
-### Lab 2
+<span id="10"></span>
 
-### Lab 3
+### Day 11
 
-### Lab 4
+记录ArceOS tutorial ch4 ch5学习过程，撰写文档
 
-### Lab 5
+<span id="11"></span>
+
+### Day 12
+
+记录ArceOS tutorial ch6 ch7学习过程，撰写文档
+
+tutorial后面内容不足，考虑直接从tutorial code转向主线arceos code学习
+
+<span id="12"></span>
+
+### Day 13
+
+## Part 4 Starry
+
+
+
+### 
