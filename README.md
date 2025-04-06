@@ -28,6 +28,7 @@ OS：OSTEP 和 MIT xv6的lab
 - [Day   10   (2025-04-01)](#9)
 - [Day   11   (2025-04-02)](#10)
 - [Day   12   (2025-04-04)](#11)
+- [Day   13   (2025-04-05)](#12)
 
 **Part4 Starry**
 
@@ -147,8 +148,8 @@ tutorial后面内容不足，考虑直接从tutorial code转向主线arceos code
 
 ### Day 13
 
+完成exercises/print_with_color,support_hashmap
+
+学习主线arceos组件axalloc，axmm，撰写文档
+
 ## Part 4 Starry
-
-
-
-### 
