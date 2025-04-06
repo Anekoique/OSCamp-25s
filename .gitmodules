@@ -13,3 +13,6 @@
 [submodule "starry"]
 	path = starry
 	url = https://github.com/Anekoique/starry-next.git
+[submodule "arceos"]
+	path = arceos
+	url = https://github.com/Anekoique/arceos.git
