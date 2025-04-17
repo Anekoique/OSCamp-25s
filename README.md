@@ -29,8 +29,14 @@ OS：OSTEP 和 MIT xv6的lab
 - [Day   11   (2025-04-02)](#10)
 - [Day   12   (2025-04-04)](#11)
 - [Day   13   (2025-04-05)](#12)
-
-**Part4 Starry**
+- [Day   14   (2025-04-07)](#13)
+- [Day   15   (2025-04-08)](#14)
+- [Day   16   (2025-04-09)](#15)
+- [Day   17   (2025-04-10)](#16)
+- [Day   18   (2025-04-11)](#17)
+- [Day   19   (2025-04-14)](#18)
+- [Day   20   (2025-04-15)](#19)
+- [Day   21   (2025-04-16)](#20)
 
 ## Part 1 Rust
 
@@ -142,14 +148,64 @@ ch8：引入锁、信号量、条件变量，实现并发
 
 记录ArceOS tutorial ch6 ch7学习过程，撰写文档
 
-tutorial后面内容不足，考虑直接从tutorial code转向主线arceos code学习
-
 <span id="12"></span>
 
 ### Day 13
 
-完成exercises/print_with_color,support_hashmap
+完成exercises/print_with_color
 
-学习主线arceos组件axalloc，axmm，撰写文档
+<span id="13"></span>
 
-## Part 4 Starry
+### Day 14
+
+完成exercises/support_hashmap
+
+<span id="14"></span>
+
+### Day 15
+
+完成exercises/alt_alloc
+
+学习主线arceos组件axalloc
+
+<span id="15"></span>
+
+### Day 16
+
+学习主线arceos组件axtask
+
+<span id="16"></span>
+
+### Day 17
+
+学习主线arceos组件axmm
+
+<span id="17"></span>
+
+### Day 18
+
+学习主线arceos组件axdriver
+
+<span id="18"></span>
+
+### Day 19
+
+完成exercises/ramfs_rename
+
+学习主线arceos组件axfs
+
+<span id="19"></span>
+
+### Day 20
+
+完成exercises/sys_mmap
+
+了解异构内核，宏内核
+
+<span id="20"></span>
+
+### Day 21
+
+完成exercises/simp_hv
+
+了解hypervisor
