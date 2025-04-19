@@ -48,8 +48,8 @@ qemu-riscv启动内核过程
 #### 二、建立内核程序入口
 
 ```toml
-// 准备编译工具链
-// rust-roolchain.toml
+# 准备编译工具链
+# rust-roolchain.toml
 [toolchain]
 profile = "minimal"
 channel = "nightly"
@@ -58,8 +58,8 @@ targets = ["riscv64gc-unknown-none-elf"]
 ```
 
 ```asm
-// 将内核入口放置在image文件开头
-// linker.lds
+# 将内核入口放置在image文件开头
+# linker.lds
 OUTPUT_ARCH(riscv)
 
 BASE_ADDRESS = 0x80200000;
@@ -273,7 +273,7 @@ macro_rules! ax_println {
 2. 将两个组件进行组合，形成可运行Unikernel
 
 ```toml
-// axhal/Cargo.toml
+# axhal/Cargo.toml
 [package]
 name = "axhal"
 version = "0.1.0"
@@ -282,7 +282,7 @@ edition = "2021"
 [dependencies]
 sbi-rt = { version = "0.0.2", features = ["legacy"] }
 
-// axorigin/Cargo.toml  
+# axorigin/Cargo.toml  
 [package]
 name = "axorigin"
 version = "0.1.0"
@@ -497,7 +497,7 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
    >
    >   ```rust
    >   use core::cell::UnsafeCell;
-   >                                 
+   >                                           
    >   let cell = UnsafeCell::new(42);
    >   let ptr = cell.get(); // 获取 *mut T 裸指针
    >   unsafe { *ptr = 10; } // 允许修改
@@ -1583,6 +1583,8 @@ fn map_aligned(
     Ok(())
 }
 ```
+
+<span id="0"></span>
 
 #### 二、页内存分配器
 
@@ -3043,15 +3045,221 @@ impl<T: ?Sized> Mutex<T> {
 
 ## Main Record
 
+### axconfig
+
+通过组件axconfig-gen解析`.axconfig.toml`生成默认config参数
+
+### axruntime
+
+完成内核初始化
+
+- `axlog::init()`初始化日志
+
+- `init_allocator`遍历`memory_regions`初始化`global_allocator`(`global_init`)
+- `init_memory_management`初始化内核虚拟地址空间管理与细粒度内核页表
+- `platform_init`arch相关，指定 CPU 可以响应哪些类型的中断
+- `init_scheduler`
+- `init_drivers`
+- `init_interrupt`
+- `init_tls`
+
+### axhal
+
+#### Framework
+
+```shell
+axhal
+├── arch           				# -> 体系结构相关
+├── cpu.rs						#
+├── irq.rs						#
+├── lib.rs						#
+├── mem.rs						#
+├── paging.rs					#
+├── platform					# -> 平台相关
+├── time.rs						#
+├── tls.rs						#
+└── trap.rs						#
+```
+
+platform：
+
+- `boot.rs`entry point of the kernel,初始化启动栈和启动页表
+
+#### support module
+
+### axns
+
+```rust
+/// Defines a resource that managed by [`AxNamespace`].
+/// Each resource will be collected into the `axns_resource` section. When  accessed, it /// is either dereferenced from the global namespace or the thread-local namespace 
+/// according to the `thread-local` feature.
+pub struct AxNamespace {
+    base: usize,
+    alloc: bool,
+}
+```
+
+- 全局命名空间:
+
+  - 整个系统只有一个，所有线程共享
+
+  - 直接使用axns_resource内存段中的静态资源
+
+  - 通过AxNamespace::global()创建
+
+  - 不需要额外内存分配(alloc: false)
+
+  - 一个线程修改资源会影响所有线程
+- 线程本地命名空间:
+
+  - 每个线程拥有独立的命名空间实例
+
+  - 只在启用thread-local特性时可用
+
+  - 通过new_thread_local()方法创建
+
+  - 需要动态分配与全局命名空间相同大小的内存
+
+  - 初始值从全局命名空间复制而来(copy_nonoverlapping)
+
+  - 标记为alloc: true，在销毁时会释放内存
+
+  - 线程对资源的修改不会影响其他线程
+
 ### axalloc
 
-### axtask
+```rust
+//！ It provides [`GlobalAllocator`], which implements the trait
+//! [`core::alloc::GlobalAlloc`]. A static global variable of type
+//! [`GlobalAllocator`] is defined with the `#[global_allocator]` attribute, to
+//! be registered as the standard library’s default allocator.
+pub struct GlobalAllocator {
+    balloc: SpinNoIrq<DefaultByteAllocator>,
+    palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
+}
+```
 
-### axfs
-
-### axdriver
+使用`Bitmap`作为数据结构实现[页内存分配器](#0)，使用`feature`选择使用`slab`，`buddy`，`tlfs`作为字节内存分配器,通过impl GlobalAlloc实现`alloc`和`dealloc`支持GlobalAllocator
 
 ### axmm
 
+#### Data structure
+
+```rust
+/// The virtual memory address space.
+pub struct AddrSpace {
+    va_range: VirtAddrRange,
+    areas: MemorySet<Backend>,          // Backend is the method managing areas 
+    pt: PageTable,
+}
+
+/// A unified enum type for different memory mapping backends.
+#[derive(Clone)]
+pub enum Backend {
+    /// Linear mapping backend.
+    Linear {
+        /// `vaddr - paddr`.
+        pa_va_offset: usize,
+    },
+    /// Allocation mapping backend.
+    Alloc {
+        /// Whether to populate the physical frames when creating the mapping.
+        populate: bool,
+    },
+}
+
+impl MappingBackend for Backend {
+    type Addr = VirtAddr;
+    type Flags = MappingFlags;
+    type PageTable = PageTable;
+    ...
+}
+```
+
+使用`AddrSpace`管理地址空间，`va_range`记录虚拟地址范围，areas通过`BtreeMap`管理虚拟地址范围内的已映射空间，每个area backend可以使用linear和alloc两种方式进行管理
+
+#### support module
+
+```rust
+/// axmm_crates/memory_addr
+
+pub struct AddrRange<A: MemoryAddr> {
+    /// The lower bound of the range (inclusive).
+    pub start: A,
+    /// The upper bound of the range (exclusive).
+    pub end: A,
+}
+
+/// A range of virtual addresses [`VirtAddr`].
+pub type VirtAddrRange = AddrRange<VirtAddr>;
+/// A range of physical addresses [`PhysAddr`].
+pub type PhysAddrRange = AddrRange<PhysAddr>
+
+/// Implement the `MemoryAddr` trait for any type that is `Copy`, `From<usize>`,
+/// `Into<usize>`, and `Ord`.
+impl<T> MemoryAddr for T where T: Copy + From<usize> + Into<usize> + Ord {}
+```
+
+```rust
+/// axmm_crates/memory_set
+
+pub struct MemorySet<B: MappingBackend> {
+    areas: BTreeMap<B::Addr, MemoryArea<B>>,
+}
+
+/// A memory area represents a continuous range of virtual memory with the same
+/// flags.
+///
+/// The target physical memory frames are determined by [`MappingBackend`] and
+/// may not be contiguous.
+pub struct MemoryArea<B: MappingBackend> {
+    va_range: AddrRange<B::Addr>,
+    flags: B::Flags,
+    backend: B,
+}
+```
+
+```rust
+/// page_table_multiarch
+
+/// A generic page table struct for 64-bit platform.
+///
+/// It also tracks all intermediate level tables. They will be deallocated
+/// When the [`PageTable64`] itself is dropped.
+pub struct PageTable64<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> {
+    root_paddr: PhysAddr,
+    _phantom: PhantomData<(M, PTE, H)>,
+}
+```
+
+### axtask
+
+### axdriver
+
+### axfs
+
+### axdma
+
+
+
+### axsync
+
+支持同步原语
+
+### axlog
+
+日志组件
+
 ### Appendix A: Makefile
 
+### Appendix B: Linker.lds.S
+
+| 段名         | 内容                  | 起始符号             | 结束符号           | 对齐 |
+| :----------- | :-------------------- | :------------------- | :----------------- | :--- |
+| .text        | 代码（指令）          | `_stext`             | `_etext`           | 4KB  |
+| .rodata      | 只读数据              | `_srodata`           | `_erodata`         | 4KB  |
+| .init_array  | 初始化函数数组        | `__init_array_start` | `__init_array_end` | 16B  |
+| .data        | 已初始化数据          | `_sdata`             | `_edata`           | 4KB  |
+| .tdata/.tbss | 线程本地存储          | `_stdata`/`_stbss`   | `_etdata`/`_etbss` | 16B  |
+| .percpu      | 每 CPU 数据           | `_percpu_start`      | `_percpu_end`      | 64B  |
+| .bss         | 未初始化数据 + 启动栈 | `_sbss`              | `_ebss`            | 4KB  |
