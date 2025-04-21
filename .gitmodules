@@ -16,3 +16,9 @@
 [submodule "arceos"]
 	path = arceos
 	url = https://github.com/Anekoique/arceos.git
+[submodule "MyOS"]
+	path = StarryX
+	url = https://github.com/Anekoique/MyOS.git
+[submodule "2025s-starry"]
+	path = 2025s-starry
+	url = https://github.com/LearningOS/oscomp-test-Anekoique.git

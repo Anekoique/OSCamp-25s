@@ -1,5 +1,11 @@
 # ArceOS Record
 
+ArceOS 的设计可以说优雅而不失健壮性，利用rust优秀的包管理机制和crates的特性组件化地搭建OS，将复杂的OS设计解耦，各个模块功能清晰、层次鲜明，
+
+tutorial出于教学的目的，在modules引入了dependence crates；而在主线arceos中，将解耦做到了极致，形成了清晰的Unikernel层次：dependence crates -> kernel modules -> api -> ulib -> app,下为上提供功能，上到下形成层次鲜明的抽象，这种抽象又为异构内核的实现提供支持，以宏内核为例，其既可以使用api提供的功能，又可以复用kernel modules支持更多的功能，这种自由的复用和组织可以为定制化操作系统提供极大的便利和支持，方便基于需求实现特定OS
+
+![image-20250422012512184](./images/image-20250422012512184.png)
+
 ## Tutorial Record
 
 ### Ch0 Hello World
@@ -497,7 +503,7 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
    >
    >   ```rust
    >   use core::cell::UnsafeCell;
-   >                                           
+   >                                             
    >   let cell = UnsafeCell::new(42);
    >   let ptr = cell.get(); // 获取 *mut T 裸指针
    >   unsafe { *ptr = 10; } // 允许修改
@@ -3081,11 +3087,24 @@ axhal
 └── trap.rs						#
 ```
 
-platform：
+Platform：
 
 - `boot.rs`entry point of the kernel,初始化启动栈和启动页表
+- `consolo.rs`借助sbi提供的功能实现控制台输入输出
+- `irq.rs`
+- `mem.rs`
+
+Hal:
+
+- `trap.rs`体系结构相关的trap处理函数，handler由中断向量表设置
+
+Non-hal and non-platform
+
+- `trap.rs`借助linkme使用def_trap_handler向全局数组注册trap处理函数，包括`IRQ/PAGE_FAULT/SYSCALL`
 
 #### support module
+
+- linkme
 
 ### axns
 
@@ -3176,9 +3195,13 @@ impl MappingBackend for Backend {
 }
 ```
 
-使用`AddrSpace`管理地址空间，`va_range`记录虚拟地址范围，areas通过`BtreeMap`管理虚拟地址范围内的已映射空间，每个area backend可以使用linear和alloc两种方式进行管理
+`axmm`使用`AddrSpace`管理地址空间，`va_range`记录虚拟地址范围，areas通过`BtreeMap`管理虚拟地址范围内的已映射空间，每个area backend可以使用linear和alloc两种方式进行管理
 
-#### support module
+#### support crates
+
+- memory_addr
+- memory_set
+- page_table_multiarch
 
 ```rust
 /// axmm_crates/memory_addr
@@ -3245,6 +3268,10 @@ pub struct PageTable64<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> {
 ### axsync
 
 支持同步原语
+
+#### support crates
+
+- kspin
 
 ### axlog
 
