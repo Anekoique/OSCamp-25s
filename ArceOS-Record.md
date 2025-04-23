@@ -503,7 +503,7 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
    >
    >   ```rust
    >   use core::cell::UnsafeCell;
-   >                                                           
+   >                                                               
    >   let cell = UnsafeCell::new(42);
    >   let ptr = cell.get(); // 获取 *mut T 裸指针
    >   unsafe { *ptr = 10; } // 允许修改
@@ -1944,6 +1944,8 @@ impl<const ORDER: usize> Default for Heap<ORDER> {
     }
 }
 ```
+
+<span id="2"></span>
 
 ### Ch5 线程管理
 
@@ -3579,35 +3581,82 @@ pub struct PageTable64<M: PagingMetaData, PTE: GenericPTE, H: PagingHandler> {
 #### abstract graph
 
 ```mermaid
-graph TB
-    A[任务管理核心] --> B[任务创建]
-    A --> C[调度机制]
-    A --> D[状态管理]
-    A --> E[多核支持]
-    A --> F[同步机制]
-
-    B --> B1[spawn/spawn_raw创建任务]
-    B --> B2[TaskInner初始化]
-    B --> B3[堆栈分配]
-
-    C --> C1[运行队列RUN_QUEUES]
-    C --> C2[调度器选择]
-    C --> C3[上下文切换]
-    C1 --> C11[每CPU独立队列]
-    C2 --> C21[FIFO/RR/CFS]
-    C3 --> C31[TaskContext保存恢复]
-
-    D --> D1[Running/Ready/Blocked/Exited]
-    D --> D2[原子状态转换]
-    D --> D3[WaitQueue阻塞管理]
-
-    E --> E1[SMP支持]
-    E --> E2[CPU亲和性]
-    E --> E3[任务迁移]
-
-    F --> F1[WaitQueue同步]
-    F --> F2[Timer超时机制]
-    F --> F3[SpinLock互斥]
+graph TD
+    %% 核心结构
+    AxTask["AxTask (Wrapper)"]
+    TaskInner["TaskInner (核心任务结构)"]
+    AxTaskRef["AxTaskRef (Arc<AxTask>)"]
+    TaskExt["AxTaskExt (任务扩展数据)"]
+    
+    %% 队列和调度器
+    RunQueue["AxRunQueue (运行队列)"]
+    WaitQueue["WaitQueue (等待队列)"]
+    Scheduler["Scheduler (调度器)"]
+    
+    %% 调度器实现
+    FIFO["FIFO调度器 (不可抢占)"]
+    RR["RR调度器 (可抢占)"]
+    CFS["CFS调度器 (可抢占)"]
+    
+    %% 定时器相关
+    TimerList["timer_list (最小堆事件管理)"]
+    Timers["timers模块 (定时器管理)"]
+    
+    %% 关系连接
+    TaskInner -->|包含| TaskExt
+    AxTask -->|封装| TaskInner
+    AxTaskRef -->|Arc包装| AxTask
+    
+    RunQueue -->|管理| AxTaskRef
+    RunQueue -->|使用| Scheduler
+    
+    Scheduler -->|根据feature选择| FIFO
+    Scheduler -->|根据feature选择| RR
+    Scheduler -->|根据feature选择| CFS
+    
+    WaitQueue -->|存储阻塞| AxTaskRef
+    WaitQueue -->|唤醒时通过| RunQueue
+    
+    Timers -->|使用| TimerList
+    Timers -->|设置任务timer_ticket_id| TaskInner
+    TaskInner -->|timer_ticket_id标识定时事件| Timers
+    
+    %% 功能流程
+    InitScheduler[/"init_scheduler()"/]
+    InitScheduler -->|创建| RunQueue
+    RunQueue -->|初始化| IdleTask[/"idle task"/]
+    RunQueue -->|初始化| MainTask[/"main task"/]
+    
+    %% 任务状态转换
+    TaskState{{"任务状态"}}
+    TaskState -->|Running| Running["运行中"]
+    TaskState -->|Ready| Ready["就绪"]
+    TaskState -->|Blocked| Blocked["阻塞"]
+    TaskState -->|Exited| Exited["已退出"]
+    
+    %% 定时器和中断处理
+    InterruptHandler["中断处理"]
+    InterruptHandler -->|时钟中断| Timers
+    Timers -->|超时唤醒| AxTaskRef
+    
+    %% SMP支持
+    SMP["SMP支持"]
+    SMP -->|多核调度| RunQueue
+    RunQueue -->|任务迁移| MigrateTask["任务迁移"]
+    
+    %% 抢占支持
+    Preemption["抢占机制"]
+    RR -->|时间片耗尽| Preemption
+    CFS -->|更高优先级任务| Preemption
+    Preemption -->|设置need_resched| TaskInner
+    
+    %% 任务等待和唤醒
+    WaitTimeout["wait_timeout()"]
+    WaitTimeout -->|设置超时| Timers
+    WaitTimeout -->|阻塞任务| WaitQueue
+    Notify["notify_one/all()"]
+    Notify -->|唤醒任务| WaitQueue
+    WaitQueue -->|取消定时器| Timers
 ```
 
 #### Data structure
@@ -3666,7 +3715,6 @@ percpu_static! {
     #[cfg(feature = "smp")]
     PREV_TASK: Weak<crate::AxTask> = Weak::new(),
 }
-
 /// [`AxRunQueue`] represents a run queue for global system or a specific CPU.
 pub(crate) struct AxRunQueue {
     /// The ID of the CPU this run queue is associated with.
@@ -3685,14 +3733,25 @@ pub struct WaitQueue {
 pub(crate) type WaitQueueGuard<'a> = SpinNoIrqGuard<'a, VecDeque<AxTaskRef>>
 ```
 
-初始化时`init_scheduler`首先初始化运行队列，运行队列初始化一个idle task和一个main task，他们一个作为空闲系统任务一个作为系统主逻辑入口
+初始化时`init_scheduler`首先初始化运行队列，运行队列初始化一个idle task和一个main task，他们一个作为空闲系统任务,一个作为系统主逻辑入口,[工作流程](#2)
+
+根据feature对每个task使用对应调度方法封装为节点axtask，使用对应scheduler进行调度`fifo`为不可抢占，`rr`和`cfs`为可抢占
+
+中断：main arceos的中断与tutorial类似但是框架组织有所差别使其能够支持smp，tutorial将time_slice直接嵌入在taskinner中，main arceos将其封装为timer_list dependence crate和timer mod，其中timer_list使用最小堆管理事件，timer mod对其功能进行封装，使用timer_ticket_id标示定时器
+
+抢占：根据不同的scheduler进行抢占设置
+
+#### support crates
+
+- timer_list
+- scheduler
 
 
 ### axdriver
 
 驱动管理模块，负责接入不同来源的设备，并为用户提供统一的驱 动功能调用接口，如块设备、网络设备和显示设备
 
-#### abstract gragh
+#### abstract graph
 
 ```mermaid
 graph TD
@@ -3885,8 +3944,6 @@ ramfs  procfs在根目录挂载一些初始目录
 - axfs_ramfs
 - fatfs
 - lwext4_rust
-
-### axdisplay
 
 ### axnet
 
