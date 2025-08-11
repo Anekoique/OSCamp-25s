@@ -503,7 +503,7 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
    >
    >   ```rust
    >   use core::cell::UnsafeCell;
-   >                                                               
+   >                                                                 
    >   let cell = UnsafeCell::new(42);
    >   let ptr = cell.get(); // 获取 *mut T 裸指针
    >   unsafe { *ptr = 10; } // 允许修改
